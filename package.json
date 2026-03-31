@@ -1,0 +1,24 @@
+{
+  "name": "unity-game-client",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hijack Poker Technical Assignment - Serverless Infrastructure",
+  "scripts": {
+    "start:rewards": "docker compose --profile rewards up",
+    "start:engine": "docker compose --profile engine up",
+    "start:streaks": "docker compose --profile streaks up",
+    "stop": "docker compose down -v",
+    "seed:rewards": "node scripts/seed-rewards.js",
+    "seed:streaks": "node scripts/seed-streaks.js",
+    "simulate:hands": "node scripts/simulate-hands.js",
+    "test:e2e": "cd e2e && npx playwright test",
+    "test:e2e:api": "cd e2e && npx playwright test --project=api",
+    "test:e2e:viewer": "cd e2e && npx playwright test --project=hand-viewer",
+    "test:e2e:webgl": "cd e2e && npx playwright test --project=webgl-smoke",
+    "test:e2e:install": "cd e2e && npm install && npx playwright install chromium",
+    "deploy:rewards": "cd serverless-v2/services/rewards-api && npx serverless deploy",
+    "deploy:streaks": "cd serverless-v2/services/streaks-api && npx serverless deploy",
+    "deploy:holdem": "cd serverless-v2/services/holdem-processor && npx serverless deploy",
+    "deploy:broadcast": "cd serverless-v2/services/cash-game-broadcast && npx serverless deploy"
+  }
+}

@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hijack Poker — Hand Viewer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      margin: 20px 0 5px;
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+
+    #phase {
+      font-size: 14px;
+      color: #ffb347;
+      margin-bottom: 15px;
+      height: 20px;
+    }
+
+    /* Table */
+    #table-area {
+      position: relative;
+      width: 700px;
+      height: 420px;
+      margin: 0 auto;
+    }
+
+    #felt {
+      position: absolute;
+      top: 50px;
+      left: 75px;
+      width: 550px;
+      height: 300px;
+      background: radial-gradient(ellipse, #2d6a3f, #1b4d2e);
+      border-radius: 150px;
+      border: 8px solid #5a3a1a;
+      box-shadow: 0 0 40px rgba(0,0,0,0.5), inset 0 0 30px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #community {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+      min-height: 62px;
+      align-items: center;
+    }
+
+    #pot-info {
+      font-size: 16px;
+      font-weight: 600;
+      color: #ffd700;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    }
+
+    /* Cards */
+    .card {
+      width: 42px;
+      height: 58px;
+      background: #fff;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 700;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      border: 1px solid #ccc;
+    }
+    .card.red { color: #d32f2f; }
+    .card.black { color: #222; }
+    .card.facedown {
+      background: linear-gradient(135deg, #1a237e, #283593);
+      border-color: #3949ab;
+      color: transparent;
+    }
+    .card.facedown::after {
+      content: '';
+      width: 28px;
+      height: 40px;
+      border: 2px solid rgba(255,255,255,0.15);
+      border-radius: 3px;
+    }
+    .card.empty {
+      background: rgba(255,255,255,0.08);
+      border: 1px dashed rgba(255,255,255,0.15);
+    }
+
+    /* Player seats */
+    .seat {
+      position: absolute;
+      width: 130px;
+      text-align: center;
+    }
+
+    .seat .name {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .seat .stack {
+      font-size: 11px;
+      color: #aaa;
+      margin-bottom: 3px;
+    }
+
+    .seat .cards {
+      display: flex;
+      gap: 3px;
+      justify-content: center;
+      margin-bottom: 3px;
+    }
+
+    .seat .cards .card {
+      width: 34px;
+      height: 46px;
+      font-size: 12px;
+    }
+
+    .seat .bet-badge {
+      font-size: 11px;
+      color: #ffd700;
+      height: 16px;
+    }
+
+    .seat .action-badge {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      display: inline-block;
+      margin-top: 2px;
+      height: 18px;
+    }
+
+    .seat .hand-rank {
+      font-size: 10px;
+      color: #4fc3f7;
+      margin-top: 2px;
+      height: 14px;
+    }
+
+    .seat .winnings {
+      font-size: 11px;
+      color: #66bb6a;
+      font-weight: 700;
+    }
+
+    .seat.active { }
+    .seat.folded { opacity: 0.4; }
+    .seat.allin .name { color: #ff7043; }
+    .seat.dealer .name::after {
+      content: ' D';
+      color: #ffd700;
+      font-size: 10px;
+    }
+    .seat.sb .name::after {
+      content: ' SB';
+      color: #81d4fa;
+      font-size: 10px;
+    }
+    .seat.bb .name::after {
+      content: ' BB';
+      color: #ce93d8;
+      font-size: 10px;
+    }
+
+    .action-check { background: #2e7d32; color: #fff; }
+    .action-call { background: #1565c0; color: #fff; }
+    .action-bet, .action-raise { background: #e65100; color: #fff; }
+    .action-fold { background: #424242; color: #999; }
+    .action-allin { background: #b71c1c; color: #fff; }
+
+    /* Seat positions around the oval (6 seats) */
+    .seat[data-seat="1"] { top: -10px;  left: 150px; }
+    .seat[data-seat="2"] { top: -10px;  left: 420px; }
+    .seat[data-seat="3"] { top: 175px;  left: 555px; }
+    .seat[data-seat="4"] { top: 355px;  left: 420px; }
+    .seat[data-seat="5"] { top: 355px;  left: 150px; }
+    .seat[data-seat="6"] { top: 175px;  left: 15px; }
+
+    /* Controls */
+    #controls {
+      display: flex;
+      gap: 10px;
+      margin: 20px 0;
+    }
+
+    button {
+      padding: 10px 24px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    #btn-step { background: #4caf50; color: #fff; }
+    #btn-auto { background: #2196f3; color: #fff; }
+    #btn-auto.running { background: #f44336; }
+    #btn-reset { background: #555; color: #fff; }
+    #btn-speed { background: #444; color: #ccc; font-size: 12px; padding: 10px 14px; }
+
+    /* Log */
+    #log {
+      width: 700px;
+      max-height: 200px;
+      overflow-y: auto;
+      background: #111;
+      border-radius: 6px;
+      padding: 10px;
+      font-family: 'SF Mono', 'Consolas', monospace;
+      font-size: 12px;
+      margin-bottom: 20px;
+    }
+
+    #log .entry {
+      padding: 2px 0;
+      border-bottom: 1px solid #222;
+    }
+    #log .entry .step-name { color: #ffb347; }
+    #log .entry .info { color: #888; }
+    #log .entry .winner { color: #66bb6a; }
+    #log .entry .error { color: #ef5350; }
+
+    /* Rewards — tied to same rewards-api + player id as the web dashboard */
+    .page-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 18px;
+      width: 100%;
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 12px 16px 8px;
+    }
+    .titles {
+      text-align: center;
+      flex: 1 1 260px;
+    }
+    .titles h1 { margin-top: 0; }
+
+    #rewards-aside {
+      flex: 0 1 300px;
+      background: rgba(12, 14, 24, 0.96);
+      border: 1px solid rgba(255, 179, 71, 0.35);
+      border-radius: 12px;
+      padding: 12px 14px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.35);
+    }
+    #rewards-aside h2 {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: #ffb347;
+      margin: 0 0 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #rewards-aside .sync-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #666;
+      display: inline-block;
+    }
+    #rewards-aside .sync-dot.ok { background: #66bb6a; box-shadow: 0 0 8px #66bb6a88; }
+    #rewards-aside .sync-dot.warn { background: #ffb347; }
+    #rewards-aside .sync-dot.err { background: #ef5350; }
+
+    #rewards-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px 10px;
+      margin-bottom: 10px;
+    }
+    #rewards-stats .lbl {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #7a8aa3;
+    }
+    #rewards-stats .val {
+      font-size: 20px;
+      font-weight: 700;
+      color: #ffd699;
+      line-height: 1.1;
+    }
+    #rewards-stats .val.sm { font-size: 15px; }
+    #rewards-meta {
+      font-size: 11px;
+      color: #aeb8c8;
+      line-height: 1.45;
+      margin-bottom: 8px;
+    }
+    #rewards-feed-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6b7a90;
+      margin: 8px 0 4px;
+    }
+    #rewards-feed {
+      max-height: 92px;
+      overflow-y: auto;
+      font-family: 'SF Mono', 'Consolas', monospace;
+      font-size: 11px;
+      line-height: 1.35;
+    }
+    #rewards-feed .tx {
+      color: #9aa5b8;
+      padding: 3px 0;
+      border-bottom: 1px solid #222833;
+    }
+    #rewards-feed .tx strong { color: #81c784; font-weight: 600; }
+    #rewards-feed .tx.offline { color: #ef5350; }
+    #rewards-footer {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 10px;
+      color: #5c6a80;
+    }
+    #rewards-footer a {
+      color: #64b5f6;
+      text-decoration: none;
+    }
+    #rewards-footer a:hover { text-decoration: underline; }
+    #rewards-player {
+      font-size: 10px;
+      color: #5c6a80;
+      margin-top: 6px;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-header">
+    <div class="titles">
+      <h1>HIJACK POKER</h1>
+      <div id="phase">Connecting...</div>
+    </div>
+    <aside id="rewards-aside" aria-label="Rewards from dashboard">
+      <h2><span id="rewards-sync-dot" class="sync-dot" title="Dashboard sync"></span> Rewards</h2>
+      <div id="rewards-stats">
+        <div><div class="lbl">Tier</div><div id="rw-tier" class="val sm">—</div></div>
+        <div><div class="lbl">Monthly</div><div id="rw-monthly" class="val">—</div></div>
+        <div><div class="lbl">Mult</div><div id="rw-mult" class="val sm">—</div></div>
+      </div>
+      <div id="rewards-meta"></div>
+      <div id="rewards-feed-title">Recent activity</div>
+      <div id="rewards-feed"></div>
+      <div id="rewards-player"></div>
+      <div id="rewards-footer">
+        <span id="rewards-updated">Not synced</span>
+        <a id="rewards-dash-link" href="#" target="_blank" rel="noopener">Open dashboard →</a>
+      </div>
+    </aside>
+  </div>
+
+  <div id="table-area">
+    <div id="felt">
+      <div id="community"></div>
+      <div id="pot-info"></div>
+    </div>
+  </div>
+
+  <div id="controls">
+    <button id="btn-step" onclick="nextStep()">Next Step</button>
+    <button id="btn-auto" onclick="toggleAuto()">Auto Play</button>
+    <button id="btn-speed" onclick="cycleSpeed()">1s</button>
+    <button id="btn-reset" onclick="resetGame()">Reset</button>
+  </div>
+
+  <div id="log"></div>
+
+<script>
+const API = 'http://localhost:3030';
+const TABLE_ID = 1;
+
+/** Query params: ?player=player-001 &rewardsApi=http://localhost:5000 &dashboard=http://localhost:4000 */
+const qs = new URLSearchParams(location.search);
+const REWARDS_API = (qs.get('rewardsApi') || 'http://localhost:5000').replace(/\/$/, '');
+const REWARDS_PLAYER_ID = qs.get('player') || 'player-001';
+const DASHBOARD_URL = (qs.get('dashboard') || 'http://localhost:4000').replace(/\/$/, '');
+const REWARDS_POLL_MS = Math.max(15000, parseInt(qs.get('rewardsPoll') || '30000', 10) || 30000);
+
+let rewardsJwt = null;
+let rewardsJwtExp = 0;
+let rewardsPollTimer = null;
+let rewardsLoggedOk = false;
+
+let autoPlaying = false;
+let autoTimer = null;
+let speeds = [1000, 500, 250, 2000];
+let speedIdx = 0;
+let handNum = 0;
+
+// ── Card rendering ──────────────────────────────────────────────
+
+const SUIT_MAP = { H: '\u2665', D: '\u2666', C: '\u2663', S: '\u2660' };
+const SUIT_COLOR = { H: 'red', D: 'red', C: 'black', S: 'black' };
+
+function renderCard(cardStr) {
+  if (!cardStr) return '<div class="card empty"></div>';
+  const suit = cardStr.slice(-1);
+  const rank = cardStr.slice(0, -1);
+  const color = SUIT_COLOR[suit] || 'black';
+  const symbol = SUIT_MAP[suit] || suit;
+  return `<div class="card ${color}">${rank}${symbol}</div>`;
+}
+
+function renderFacedown() {
+  return '<div class="card facedown"></div>';
+}
+
+function renderEmptyCard() {
+  return '<div class="card empty"></div>';
+}
+
+// ── Phase labels ────────────────────────────────────────────────
+
+const PHASE_LABELS = {
+  GAME_PREP: 'Preparing Hand...',
+  SETUP_DEALER: 'Setting Up Dealer',
+  SETUP_SMALL_BLIND: 'Posting Small Blind',
+  SETUP_BIG_BLIND: 'Posting Big Blind',
+  DEAL_CARDS: 'Dealing Hole Cards',
+  PRE_FLOP_BETTING_ROUND: 'Pre-Flop Betting',
+  DEAL_FLOP: 'Dealing Flop',
+  FLOP_BETTING_ROUND: 'Flop Betting',
+  DEAL_TURN: 'Dealing Turn',
+  TURN_BETTING_ROUND: 'Turn Betting',
+  DEAL_RIVER: 'Dealing River',
+  RIVER_BETTING_ROUND: 'River Betting',
+  AFTER_RIVER_BETTING_ROUND: 'Showdown',
+  FIND_WINNERS: 'Evaluating Hands',
+  PAY_WINNERS: 'Paying Winners',
+  RECORD_STATS_AND_NEW_HAND: 'Hand Complete',
+};
+
+// showdown phase: reveal cards to the UI after river betting
+const SHOWDOWN_STEPS = [
+  'AFTER_RIVER_BETTING_ROUND', 'FIND_WINNERS', 'PAY_WINNERS', 'RECORD_STATS_AND_NEW_HAND'
+];
+
+// ── Table rendering ─────────────────────────────────────────────
+
+function render(data) {
+  if (!data) return;
+  const { game, players } = data;
+
+  // Phase
+  const phase = document.getElementById('phase');
+  const label = PHASE_LABELS[game.stepName] || game.stepName;
+  if (game.stepName === 'RECORD_STATS_AND_NEW_HAND') {
+    phase.textContent = `Hand #${game.gameNo} Complete`;
+  } else {
+    phase.textContent = `Hand #${game.gameNo} \u2014 ${label}`;
+  }
+
+  // Community cards
+  const cc = document.getElementById('community');
+  const cards = game.communityCards || [];
+  let ccHtml = '';
+  for (let i = 0; i < 5; i++) {
+    ccHtml += cards[i] ? renderCard(cards[i]) : renderEmptyCard();
+  }
+  cc.innerHTML = ccHtml;
+
+  // Pot
+  const potInfo = document.getElementById('pot-info');
+  potInfo.textContent = game.pot > 0 ? `Pot: $${game.pot.toFixed(2)}` : '';
+
+  // Seats
+  const tableArea = document.getElementById('table-area');
+  // Remove old seats
+  tableArea.querySelectorAll('.seat').forEach(el => el.remove());
+
+  const showCards = SHOWDOWN_STEPS.includes(game.stepName);
+
+  for (const p of players) {
+    const seat = document.createElement('div');
+    seat.className = 'seat';
+    seat.dataset.seat = p.seat;
+
+    // Add status classes
+    if (p.status === '11') seat.classList.add('folded');
+    if (p.status === '12') seat.classList.add('allin');
+    if (p.seat === game.dealerSeat) seat.classList.add('dealer');
+    else if (p.seat === game.smallBlindSeat) seat.classList.add('sb');
+    else if (p.seat === game.bigBlindSeat) seat.classList.add('bb');
+
+    // Player cards
+    let cardsHtml = '';
+    if (p.cards && p.cards.length > 0) {
+      if (showCards || p.winnings > 0) {
+        cardsHtml = p.cards.map(c => renderCard(c)).join('');
+      } else {
+        cardsHtml = p.cards.map(() => renderFacedown()).join('');
+      }
+    }
+
+    // Action badge
+    let actionHtml = '';
+    if (p.action) {
+      const cls = `action-${p.action.toLowerCase()}`;
+      actionHtml = `<div class="action-badge ${cls}">${p.action.toUpperCase()}</div>`;
+    }
+
+    // Bet
+    const betHtml = p.bet > 0 ? `$${p.bet.toFixed(2)}` : '';
+
+    // Hand rank (on showdown)
+    const rankHtml = p.handRank ? `<div class="hand-rank">${p.handRank}</div>` : '';
+
+    // Winnings
+    const winHtml = p.winnings > 0 ? `<div class="winnings">+$${p.winnings.toFixed(2)}</div>` : '';
+
+    seat.innerHTML = `
+      <div class="name">${p.username}</div>
+      <div class="stack">$${p.stack.toFixed(2)}</div>
+      <div class="cards">${cardsHtml}</div>
+      <div class="bet-badge">${betHtml}</div>
+      ${actionHtml}
+      ${rankHtml}
+      ${winHtml}
+    `;
+
+    tableArea.appendChild(seat);
+  }
+}
+
+// ── API calls ───────────────────────────────────────────────────
+
+async function fetchTableState() {
+  try {
+    const res = await fetch(`${API}/table/${TABLE_ID}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    log('Failed to fetch table: ' + err.message, 'error');
+    return null;
+  }
+}
+
+async function nextStep() {
+  document.getElementById('btn-step').disabled = true;
+  try {
+    const res = await fetch(`${API}/process`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tableId: TABLE_ID }),
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      const stepName = data.result.stepName;
+      const label = PHASE_LABELS[stepName] || stepName;
+      log(label, 'step-name');
+
+      // Detect new hand
+      if (stepName === 'RECORD_STATS_AND_NEW_HAND') {
+        log(`Hand complete. Winners paid.`, 'winner');
+      }
+    } else {
+      log('Error: ' + JSON.stringify(data), 'error');
+    }
+
+    // Refresh table view
+    const state = await fetchTableState();
+    if (state) render(state);
+
+  } catch (err) {
+    log('Request failed: ' + err.message, 'error');
+  }
+  document.getElementById('btn-step').disabled = false;
+}
+
+async function resetGame() {
+  stopAuto();
+  // Process until we get to GAME_PREP / SETUP_DEALER of a new hand, or just refresh
+  log('--- Resetting table ---', 'info');
+  const state = await fetchTableState();
+  if (state) render(state);
+}
+
+function toggleAuto() {
+  if (autoPlaying) {
+    stopAuto();
+  } else {
+    startAuto();
+  }
+}
+
+function startAuto() {
+  autoPlaying = true;
+  const btn = document.getElementById('btn-auto');
+  btn.textContent = 'Stop';
+  btn.classList.add('running');
+  document.getElementById('btn-step').disabled = true;
+  autoTick();
+}
+
+function stopAuto() {
+  autoPlaying = false;
+  clearTimeout(autoTimer);
+  const btn = document.getElementById('btn-auto');
+  btn.textContent = 'Auto Play';
+  btn.classList.remove('running');
+  document.getElementById('btn-step').disabled = false;
+}
+
+async function autoTick() {
+  if (!autoPlaying) return;
+  await nextStep();
+  if (autoPlaying) {
+    autoTimer = setTimeout(autoTick, speeds[speedIdx]);
+  }
+}
+
+function cycleSpeed() {
+  speedIdx = (speedIdx + 1) % speeds.length;
+  const labels = ['1s', '0.5s', '0.25s', '2s'];
+  document.getElementById('btn-speed').textContent = labels[speedIdx];
+}
+
+// ── Log ─────────────────────────────────────────────────────────
+
+function log(msg, cls = 'info') {
+  const el = document.getElementById('log');
+  const entry = document.createElement('div');
+  entry.className = 'entry';
+  entry.innerHTML = `<span class="${cls}">${msg}</span>`;
+  el.prepend(entry);
+  // Keep log trimmed
+  while (el.children.length > 100) el.lastChild.remove();
+}
+
+// ── Rewards (same API + player as React dashboard) ──────────────
+
+function setRewardsSync(state) {
+  const dot = document.getElementById('rewards-sync-dot');
+  dot.classList.remove('ok', 'warn', 'err');
+  if (state === 'ok') dot.classList.add('ok');
+  else if (state === 'warn') dot.classList.add('warn');
+  else dot.classList.add('err');
+}
+
+function formatTxTime(isoOrTs) {
+  if (isoOrTs == null) return '';
+  const d = typeof isoOrTs === 'number' ? new Date(isoOrTs) : new Date(isoOrTs);
+  if (Number.isNaN(d.getTime())) return '';
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+async function rewardsGetToken() {
+  const res = await fetch(`${REWARDS_API}/api/v1/auth/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ playerId: REWARDS_PLAYER_ID }),
+  });
+  if (!res.ok) throw new Error(`token ${res.status}`);
+  const data = await res.json();
+  rewardsJwt = data.token;
+  const ttl = typeof data.expiresIn === 'number' ? data.expiresIn : 3600;
+  rewardsJwtExp = Date.now() / 1000 + ttl - 90;
+}
+
+async function rewardsEnsureToken() {
+  if (rewardsJwt && Date.now() / 1000 < rewardsJwtExp) return;
+  await rewardsGetToken();
+}
+
+async function fetchPlayerRewards() {
+  await rewardsEnsureToken();
+  let res = await fetch(`${REWARDS_API}/api/v1/player/rewards`, {
+    headers: { Authorization: `Bearer ${rewardsJwt}` },
+  });
+  if (res.status === 401) {
+    rewardsJwt = null;
+    await rewardsGetToken();
+    res = await fetch(`${REWARDS_API}/api/v1/player/rewards`, {
+      headers: { Authorization: `Bearer ${rewardsJwt}` },
+    });
+  }
+  if (!res.ok) throw new Error(`rewards ${res.status}`);
+  return res.json();
+}
+
+function renderRewardsFeed(txs) {
+  const el = document.getElementById('rewards-feed');
+  if (!Array.isArray(txs) || txs.length === 0) {
+    el.innerHTML = '<div class="tx">No recent point events yet. Earn points from the dashboard simulator or API.</div>';
+    return;
+  }
+  el.innerHTML = txs.slice(0, 6).map((t) => {
+    const pts = t.earnedPoints != null ? t.earnedPoints : t.points;
+    const typ = t.type || t.reason || 'activity';
+    const when = formatTxTime(t.createdAt || t.timestamp);
+    const stake = t.tableStakes ? ` · ${t.tableStakes}` : '';
+    return `<div class="tx"><strong>+${pts}</strong> pts · ${typ}${stake}${when ? ` · ${when}` : ''}</div>`;
+  }).join('');
+}
+
+function applyRewardsPayload(data) {
+  document.getElementById('rw-tier').textContent = data.tier || '—';
+  document.getElementById('rw-monthly').textContent =
+    data.monthlyPoints != null ? Number(data.monthlyPoints).toLocaleString() : '—';
+  const m = data.multiplier;
+  document.getElementById('rw-mult').textContent =
+    m != null ? (Number.isInteger(m) ? `${m}×` : `${Number(m).toFixed(1)}×`) : '—';
+
+  let meta = '';
+  if (data.lifetimePoints != null) {
+    meta += `Lifetime <strong style="color:#e0e4ec">${Number(data.lifetimePoints).toLocaleString()}</strong> pts`;
+  }
+  if (data.nextTierName && data.nextTierAt != null) {
+    meta += ` · Next: <strong style="color:#ffb347">${data.nextTierName}</strong> at ${Number(data.nextTierAt).toLocaleString()} pts`;
+  } else if (data.tier) {
+    meta += ' · Max tier reached';
+  }
+  document.getElementById('rewards-meta').innerHTML = meta || '—';
+
+  renderRewardsFeed(data.recentTransactions);
+
+  const t = new Date();
+  document.getElementById('rewards-updated').textContent = `Updated ${t.toLocaleTimeString()}`;
+  setRewardsSync('ok');
+}
+
+async function refreshRewardsPanel() {
+  try {
+    const data = await fetchPlayerRewards();
+    applyRewardsPayload(data);
+    if (!rewardsLoggedOk) {
+      log(
+        `Rewards panel linked (player ${REWARDS_PLAYER_ID}) — tier ${data.tier}, ` +
+          `${Number(data.monthlyPoints).toLocaleString()} pts this month.`,
+        'info',
+      );
+      rewardsLoggedOk = true;
+    }
+  } catch (e) {
+    setRewardsSync('err');
+    document.getElementById('rw-tier').textContent = '—';
+    document.getElementById('rw-monthly').textContent = '—';
+    document.getElementById('rw-mult').textContent = '—';
+    document.getElementById('rewards-meta').innerHTML =
+      `Could not reach rewards API at <code style="font-size:10px">${REWARDS_API}</code>. ` +
+      'Start <span class="step-name">docker compose --profile rewards</span> (see README).';
+    document.getElementById('rewards-feed').innerHTML =
+      '<div class="tx offline">Offline — open the dashboard separately to manage points.</div>';
+    document.getElementById('rewards-updated').textContent = 'Sync failed';
+    log('Rewards API unreachable — check rewards profile / port (see README).', 'error');
+    rewardsLoggedOk = false;
+  }
+}
+
+function startRewardsPolling() {
+  const link = document.getElementById('rewards-dash-link');
+  link.href = `${DASHBOARD_URL}/`;
+
+  document.getElementById('rewards-player').textContent =
+    `Player id: ${REWARDS_PLAYER_ID} (match this in the dashboard login)`;
+
+  setRewardsSync('warn');
+  refreshRewardsPanel();
+  rewardsPollTimer = setInterval(refreshRewardsPanel, REWARDS_POLL_MS);
+}
+
+// ── Init ────────────────────────────────────────────────────────
+
+async function init() {
+  log('Connecting to holdem-processor...', 'info');
+  try {
+    const health = await fetch(`${API}/health`);
+    if (health.ok) {
+      log('Connected.', 'info');
+    }
+  } catch (err) {
+    log('Cannot connect to API at ' + API, 'error');
+    document.getElementById('phase').textContent = 'API not available';
+    return;
+  }
+
+  const state = await fetchTableState();
+  if (state) {
+    render(state);
+    log('Table loaded. Click "Next Step" or "Auto Play".', 'info');
+  } else {
+    document.getElementById('phase').textContent = 'Ready \u2014 click Next Step to begin';
+    log('No active game. Click "Next Step" to start a new hand.', 'info');
+  }
+
+  startRewardsPolling();
+}
+
+init();
+</script>
+</body>
+</html>

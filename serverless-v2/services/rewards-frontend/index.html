@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <script>
+      window.onerror = function(msg, src, line, col, err) {
+        document.body.style.background = '#0A0F1E';
+        document.body.innerHTML = '<div style="color:white;padding:40px;font-family:monospace"><h2 style="color:#EF4444">Error</h2><pre style="color:#FCA5A5;white-space:pre-wrap">' + msg + '\n' + src + ':' + line + '\n' + (err ? err.stack : '') + '</pre></div>';
+      };
+      window.onunhandledrejection = function(e) {
+        document.body.style.background = '#0A0F1E';
+        document.body.innerHTML = '<div style="color:white;padding:40px;font-family:monospace"><h2 style="color:#EF4444">Unhandled rejection</h2><pre style="color:#FCA5A5;white-space:pre-wrap">' + (e.reason && e.reason.stack ? e.reason.stack : e.reason) + '</pre></div>';
+      };
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hijack Poker — Rewards Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
