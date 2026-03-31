@@ -1,0 +1,70 @@
+service: rewards-api
+
+frameworkVersion: '3'
+
+package:
+  patterns:
+    - '!../../shared/node_modules/**'
+    - ../../shared/**
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  stage: ${opt:stage, 'dev'}
+  region: us-east-1
+  memorySize: 256
+  timeout: 30
+  environment:
+    STAGE: ${self:provider.stage}
+    NODE_ENV: production
+    REWARDS_PLAYERS_TABLE: !Ref RewardsPlayersTable
+    REWARDS_TRANSACTIONS_TABLE: !Ref RewardsTransactionsTable
+    JWT_SECRET: ${env:JWT_SECRET, 'dev-secret-change-in-prod'}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:Query
+            - dynamodb:Scan
+          Resource:
+            - !GetAtt RewardsPlayersTable.Arn
+            - !GetAtt RewardsTransactionsTable.Arn
+
+functions:
+  api:
+    handler: handler.api
+    events:
+      - httpApi: '*'
+
+resources:
+  Resources:
+    RewardsPlayersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-${self:provider.stage}-players
+        AttributeDefinitions:
+          - AttributeName: playerId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: playerId
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+    RewardsTransactionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-${self:provider.stage}-transactions
+        AttributeDefinitions:
+          - AttributeName: playerId
+            AttributeType: S
+          - AttributeName: timestamp
+            AttributeType: N
+        KeySchema:
+          - AttributeName: playerId
+            KeyType: HASH
+          - AttributeName: timestamp
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST

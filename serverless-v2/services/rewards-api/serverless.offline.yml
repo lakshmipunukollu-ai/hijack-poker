@@ -1,0 +1,28 @@
+service: rewards-api
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  stage: local
+  region: us-east-1
+  # Lets serverless-offline answer browser preflights correctly (avoids opaque 403 CORS failures).
+  httpApi:
+    cors: true
+  environment:
+    STAGE: local
+
+functions:
+  api:
+    handler: handler.api
+    events:
+      - httpApi: '*'
+
+plugins:
+  - serverless-offline
+
+custom:
+  serverless-offline:
+    httpPort: 5000
+    lambdaPort: 5002
