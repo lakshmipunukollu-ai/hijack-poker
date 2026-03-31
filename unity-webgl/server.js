@@ -20,8 +20,12 @@ const mimeTypes = {
 };
 
 http.createServer((req, res) => {
-  let filePath = path.join(__dirname, req.url === '/' ? 'index.html' : req.url);
-  const ext = req.url.endsWith('.gz') ? path.extname(req.url.replace('.gz','')) + '.gz' : path.extname(req.url);
+  const urlPath = req.url.split('?')[0];
+  const servePath = urlPath === '/' ? 'index.html' : urlPath;
+  const filePath = path.join(__dirname, servePath);
+  const ext = servePath.endsWith('.gz')
+    ? path.extname(servePath.replace('.gz', '')) + '.gz'
+    : path.extname(servePath);
   let contentType = mimeTypes[ext] || 'application/octet-stream';
   
   if (req.url.endsWith('.gz')) {
