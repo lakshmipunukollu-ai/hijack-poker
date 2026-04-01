@@ -125,6 +125,7 @@ router.post('/tier/override',
     const currentTier = ADMIN_TIER_LEVEL_TO_NAME[tierLevel - 1];
     const updates = {
       currentTier,
+      tierFloor: currentTier,
       updatedAt: new Date().toISOString(),
     };
     if (expiresAt) {
